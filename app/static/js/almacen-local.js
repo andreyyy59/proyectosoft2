@@ -5,7 +5,13 @@ import {
   calcularEstadisticas,
   calcularPuntos,
   calcularRacha,
+  celdaValida,
+  costoMejora,
   diaSemana,
+  estadoItem,
+  evidenciasPorTipo,
+  materialesDisponibles,
+  reembolso,
   esDiaHabil,
   evaluarInsignias,
   minutos,
@@ -87,6 +93,8 @@ export class AlmacenLocal {
     const datos = {
       usuario: { id: 1, alias, perfil, equipo: String(equipo || "").trim() || "Mi equipo", es_admin: false, consintio: false },
       puntos: 0,
+      materiales_ajuste: 0,
+      construcciones: [],
       reportes: [],
       insignias: {},
       eventos: [],
@@ -145,7 +153,96 @@ export class AlmacenLocal {
         .map((i) => ({ codigo: i.codigo, obtenida: Boolean(d.insignias[i.codigo]), fecha: d.insignias[i.codigo] ?? null })),
       reportes: reportes.slice(0, 60),
       estadisticas: calcularEstadisticas(d.reportes, d.usuario.perfil, this.config),
+      materiales: this.materiales(d),
+      construcciones: d.construcciones ?? [],
+      catalogo: this.catalogo(d),
     };
+  }
+
+  // ---------- Construcción ----------
+  materiales(d) {
+    const gastado = (d.construcciones ?? []).reduce((s, c) => s + c.gastado, 0);
+    return materialesDisponibles(d.puntos, d.materiales_ajuste ?? 0, gastado, this.config);
+  }
+
+  catalogo(d) {
+    const nivel = nivelPara(d.puntos, this.config.niveles).numero;
+    const ev = evidenciasPorTipo(d.reportes);
+    return this.config.catalogo.map((item) => estadoItem(item, nivel, ev, this.config));
+  }
+
+  item(tipo) {
+    const item = this.config.catalogo.find((i) => i.id === tipo);
+    if (!item) throw new Error("Ese edificio no existe.");
+    return item;
+  }
+
+  propia(d, id) {
+    const c = (d.construcciones ?? []).find((x) => x.id === id);
+    if (!c) throw new Error("Ese edificio no está en tu meseta.");
+    return c;
+  }
+
+  validarCelda(d, celda, ignorarId = null) {
+    const nivel = nivelPara(d.puntos, this.config.niveles).numero;
+    if (!celdaValida(celda, nivel, this.config)) throw new Error("Ahí no se puede construir: elige un lugar dentro de la meseta.");
+    const ocupada = d.construcciones.find((c) => c.celda[0] === celda[0] && c.celda[1] === celda[1]);
+    if (ocupada && ocupada.id !== ignorarId) throw new Error("Ese lugar ya está ocupado.");
+  }
+
+  cobrar(d, costo) {
+    const disponibles = this.materiales(d);
+    if (disponibles < costo) throw new Error(`Te faltan ${costo - disponibles} materiales. Repórtalos con tu avance de hoy.`);
+  }
+
+  async construir(tipo, celda, rotacion = 0) {
+    const d = this.datos();
+    d.construcciones ??= [];
+    const item = this.item(tipo);
+    const estado = this.catalogo(d).find((e) => e.id === tipo);
+    if (!estado.desbloqueado) throw new Error(estado.falta);
+    this.validarCelda(d, celda);
+    this.cobrar(d, item.costo);
+    const c = { id: Math.max(0, ...d.construcciones.map((x) => x.id)) + 1, tipo, celda, nivel: 1, rotacion: ((rotacion % 4) + 4) % 4, gastado: item.costo };
+    d.construcciones.push(c);
+    this.evento(d, "construccion_creada", { tipo, costo: item.costo });
+    this.guardar(d);
+    return { construccion: c, materiales: this.materiales(d) };
+  }
+
+  async mejorar(id) {
+    const d = this.datos();
+    const c = this.propia(d, id);
+    const costo = costoMejora(this.item(c.tipo), c.nivel, this.config);
+    if (costo === null) throw new Error("Este edificio ya está en su nivel máximo.");
+    this.cobrar(d, costo);
+    c.nivel += 1;
+    c.gastado += costo;
+    this.evento(d, "construccion_mejorada", { tipo: c.tipo, nivel: c.nivel, costo });
+    this.guardar(d);
+    return { construccion: c, materiales: this.materiales(d) };
+  }
+
+  async mover(id, celda, rotacion) {
+    const d = this.datos();
+    const c = this.propia(d, id);
+    this.validarCelda(d, celda, id);
+    c.celda = celda;
+    if (rotacion !== undefined && rotacion !== null) c.rotacion = ((rotacion % 4) + 4) % 4;
+    this.evento(d, "construccion_movida", { tipo: c.tipo });
+    this.guardar(d);
+    return { construccion: c, materiales: this.materiales(d) };
+  }
+
+  async demoler(id) {
+    const d = this.datos();
+    const c = this.propia(d, id);
+    const devuelto = reembolso(c.gastado, this.config);
+    d.materiales_ajuste = (d.materiales_ajuste ?? 0) - (c.gastado - devuelto);
+    d.construcciones = d.construcciones.filter((x) => x.id !== id);
+    this.evento(d, "construccion_demolida", { tipo: c.tipo, devuelto });
+    this.guardar(d);
+    return { devuelto, materiales: this.materiales(d) };
   }
 
   async registrarReporte(entrada) {
@@ -172,6 +269,7 @@ export class AlmacenLocal {
     const retraso = minutos(hora) <= minutos(limite) ? 0 : minutos(hora) - minutos(limite);
 
     const nivelAntes = nivelPara(d.puntos, this.config.niveles);
+    const desbloqueadosAntes = new Set(this.catalogo(d).filter((e) => e.desbloqueado).map((e) => e.id));
     const reporte = {
       id: d.reportes.length + 1, fecha, hora, ...limpio,
       a_tiempo: aTiempo, duplicado: esDuplicado, minutos_retraso: retraso,
@@ -184,15 +282,18 @@ export class AlmacenLocal {
     const est = calcularEstadisticas(d.reportes, d.usuario.perfil, this.config);
     const nuevas = evaluarInsignias(est, d.usuario.perfil, this.config).filter((c) => !d.insignias[c]);
     for (const c of nuevas) d.insignias[c] = momento.toISOString();
+    const nuevosEdificios = this.catalogo(d).filter((e) => e.desbloqueado && !desbloqueadosAntes.has(e.id)).map((e) => e.id);
 
     this.evento(d, "reporte_registrado", { reporte_id: reporte.id, a_tiempo: aTiempo, duplicado: esDuplicado, minutos_retraso: retraso });
     this.evento(d, "puntos_otorgados", resultado);
     for (const c of nuevas) this.evento(d, "insignia_obtenida", { codigo: c });
     if (nivelDespues.numero > nivelAntes.numero) this.evento(d, "nivel_subido", { de: nivelAntes.numero, a: nivelDespues.numero });
+    for (const t of nuevosEdificios) this.evento(d, "edificio_desbloqueado", { tipo: t });
     this.guardar(d);
 
     return {
       reporte, resultado, racha, nuevas_insignias: nuevas,
+      nuevos_edificios: nuevosEdificios, materiales_ganados: resultado.total, materiales: this.materiales(d),
       nivel_antes: nivelAntes, nivel_despues: nivelDespues,
       subio_nivel: nivelDespues.numero > nivelAntes.numero,
     };

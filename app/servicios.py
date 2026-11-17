@@ -3,13 +3,19 @@ from datetime import date, datetime, time, timedelta
 
 from .eventos import BusEventos
 from .extensiones import db
-from .modelos import InsigniaObtenida, Parametro, Reporte, Usuario
+from .modelos import Construccion, InsigniaObtenida, Parametro, Reporte, Usuario
 from .reglas import (
     ContextoReporte,
     MotorReglas,
     calcular_estadisticas,
     calcular_racha,
+    celda_valida,
+    costo_mejora,
     es_dia_habil,
+    estado_item,
+    evidencias_por_tipo,
+    materiales_disponibles,
+    reembolso,
     evaluar_insignias,
     nivel_para,
     racha_maxima,
@@ -19,6 +25,10 @@ from .reglas import (
 
 class ErrorValidacion(ValueError):
     """Datos del reporte inválidos. El mensaje se muestra al jugador."""
+
+
+class ErrorNoEncontrado(LookupError):
+    """El recurso no existe o no es del jugador."""
 
 
 def leer_hora(texto: str) -> time:
@@ -116,6 +126,7 @@ class ServicioJuego:
         limite = self.hora_limite()
 
         previos = [r.para_reglas() for r in usuario.reportes.all()]
+        desbloqueados_antes = self._desbloqueados(usuario, previos)
         es_duplicado = any(r["fecha"] == fecha and not r["duplicado"] for r in previos)
         a_tiempo = hora <= limite and not es_duplicado
         fechas_a_tiempo = {r["fecha"] for r in previos if r["a_tiempo"] and not r["duplicado"]}
@@ -154,6 +165,8 @@ class ServicioJuego:
         nivel_despues = nivel_para(usuario.puntos, self.config["niveles"])
 
         nuevas = self._otorgar_insignias(usuario, momento)
+        todos = [r.para_reglas() for r in usuario.reportes.all()]
+        nuevos_edificios = [i for i in self._desbloqueados(usuario, todos) if i not in desbloqueados_antes]
 
         self.bus.publicar("reporte_registrado", usuario.id, {
             "reporte_id": reporte.id,
@@ -167,6 +180,8 @@ class ServicioJuego:
         self.bus.publicar("puntos_otorgados", usuario.id, resultado.como_dict(), momento)
         for codigo in nuevas:
             self.bus.publicar("insignia_obtenida", usuario.id, {"codigo": codigo}, momento)
+        for item_id in nuevos_edificios:
+            self.bus.publicar("edificio_desbloqueado", usuario.id, {"tipo": item_id}, momento)
         if nivel_despues["numero"] > nivel_antes["numero"]:
             self.bus.publicar("nivel_subido", usuario.id, {
                 "de": nivel_antes["numero"], "a": nivel_despues["numero"]
@@ -178,6 +193,9 @@ class ServicioJuego:
             "resultado": resultado.como_dict(),
             "racha": racha,
             "nuevas_insignias": nuevas,
+            "nuevos_edificios": nuevos_edificios,
+            "materiales_ganados": resultado.total,
+            "materiales": self.materiales(usuario),
             "nivel_antes": nivel_antes,
             "nivel_despues": nivel_despues,
             "subio_nivel": nivel_despues["numero"] > nivel_antes["numero"],
@@ -224,7 +242,95 @@ class ServicioJuego:
             "insignias": insignias,
             "reportes": [r.como_dict() for r in reportes[:60]],
             "estadisticas": calcular_estadisticas(para_reglas, usuario.perfil, self.config),
+            "materiales": self.materiales(usuario),
+            "construcciones": [c.como_dict() for c in usuario.construcciones.order_by(Construccion.id).all()],
+            "catalogo": self.catalogo(usuario, para_reglas),
         }
+
+    # ---------- Construcción ----------
+    def materiales(self, usuario: Usuario) -> int:
+        gastado = sum(c.gastado for c in usuario.construcciones.all())
+        return materiales_disponibles(usuario.puntos, usuario.materiales_ajuste, gastado, self.config)
+
+    def catalogo(self, usuario: Usuario, reportes: list[dict]) -> list[dict]:
+        nivel = nivel_para(usuario.puntos, self.config["niveles"])["numero"]
+        evidencias = evidencias_por_tipo(reportes)
+        return [estado_item(item, nivel, evidencias, self.config) for item in self.config["catalogo"]]
+
+    def _desbloqueados(self, usuario: Usuario, reportes: list[dict]) -> set[str]:
+        return {e["id"] for e in self.catalogo(usuario, reportes) if e["desbloqueado"]}
+
+    def _item(self, tipo: str) -> dict:
+        for item in self.config["catalogo"]:
+            if item["id"] == tipo:
+                return item
+        raise ErrorValidacion("Ese edificio no existe.")
+
+    def _propia(self, usuario: Usuario, construccion_id: int) -> Construccion:
+        c = db.session.get(Construccion, construccion_id)
+        if c is None or c.usuario_id != usuario.id:
+            raise ErrorNoEncontrado("Ese edificio no está en tu meseta.")
+        return c
+
+    def _validar_celda(self, usuario: Usuario, celda, ignorar_id: int | None = None) -> tuple[int, int]:
+        nivel = nivel_para(usuario.puntos, self.config["niveles"])["numero"]
+        if not celda_valida(celda, nivel, self.config):
+            raise ErrorValidacion("Ahí no se puede construir: elige un lugar dentro de la meseta.")
+        ocupada = usuario.construcciones.filter_by(celda_i=celda[0], celda_j=celda[1]).first()
+        if ocupada and ocupada.id != ignorar_id:
+            raise ErrorValidacion("Ese lugar ya está ocupado.")
+        return celda[0], celda[1]
+
+    def _cobrar(self, usuario: Usuario, costo: int) -> None:
+        disponibles = self.materiales(usuario)
+        if disponibles < costo:
+            raise ErrorValidacion(f"Te faltan {costo - disponibles} materiales. Repórtalos con tu avance de hoy.")
+
+    def construir(self, usuario: Usuario, tipo: str, celda, rotacion: int = 0) -> dict:
+        item = self._item(tipo)
+        reportes = [r.para_reglas() for r in usuario.reportes.all()]
+        estado = next(e for e in self.catalogo(usuario, reportes) if e["id"] == tipo)
+        if not estado["desbloqueado"]:
+            raise ErrorValidacion(estado["falta"])
+        i, j = self._validar_celda(usuario, celda)
+        self._cobrar(usuario, item["costo"])
+        c = Construccion(usuario_id=usuario.id, tipo=tipo, celda_i=i, celda_j=j,
+                         rotacion=int(rotacion) % 4, gastado=item["costo"], creado_en=self.reloj())
+        db.session.add(c)
+        db.session.flush()
+        self.bus.publicar("construccion_creada", usuario.id, {"tipo": tipo, "costo": item["costo"]}, self.reloj())
+        db.session.commit()
+        return {"construccion": c.como_dict(), "materiales": self.materiales(usuario)}
+
+    def mejorar(self, usuario: Usuario, construccion_id: int) -> dict:
+        c = self._propia(usuario, construccion_id)
+        costo = costo_mejora(self._item(c.tipo), c.nivel, self.config)
+        if costo is None:
+            raise ErrorValidacion("Este edificio ya está en su nivel máximo.")
+        self._cobrar(usuario, costo)
+        c.nivel += 1
+        c.gastado += costo
+        self.bus.publicar("construccion_mejorada", usuario.id, {"tipo": c.tipo, "nivel": c.nivel, "costo": costo}, self.reloj())
+        db.session.commit()
+        return {"construccion": c.como_dict(), "materiales": self.materiales(usuario)}
+
+    def mover(self, usuario: Usuario, construccion_id: int, celda, rotacion: int | None = None) -> dict:
+        c = self._propia(usuario, construccion_id)
+        c.celda_i, c.celda_j = self._validar_celda(usuario, celda, ignorar_id=c.id)
+        if rotacion is not None:
+            c.rotacion = int(rotacion) % 4
+        self.bus.publicar("construccion_movida", usuario.id, {"tipo": c.tipo}, self.reloj())
+        db.session.commit()
+        return {"construccion": c.como_dict(), "materiales": self.materiales(usuario)}
+
+    def demoler(self, usuario: Usuario, construccion_id: int) -> dict:
+        c = self._propia(usuario, construccion_id)
+        devuelto = reembolso(c.gastado, self.config)
+        usuario.materiales_ajuste -= c.gastado - devuelto
+        self.bus.publicar("construccion_demolida", usuario.id, {"tipo": c.tipo, "devuelto": devuelto}, self.reloj())
+        db.session.delete(c)
+        db.session.commit()
+        return {"devuelto": devuelto, "materiales": self.materiales(usuario)}
 
     def progreso_equipos(self) -> dict:
         hoy = self.reloj().date()

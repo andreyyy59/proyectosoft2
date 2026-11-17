@@ -479,3 +479,92 @@ input[type=range] { accent-color: var(--guayacan); width: 100%; height: 28px; }
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 .sin-movimiento *, .sin-movimiento *::before, .sin-movimiento *::after { transition-duration: 0.01ms !important; }
+
+/* ---------- Construcción ---------- */
+.stat-materiales { grid-template-columns: auto auto; }
+.stat-materiales .icono { width: 22px; height: 22px; color: var(--guayacan); align-self: center; }
+.materiales-ganados { display: flex; align-items: center; gap: 10px; color: var(--hueso); font-weight: 700; }
+.materiales-ganados .icono { color: var(--guayacan); width: 24px; height: 24px; }
+
+.dock {
+  position: fixed; left: var(--margen); right: var(--margen); bottom: 20px;
+  background: var(--panel); backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid var(--linea); border-radius: 20px; padding: 16px 18px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  animation: dock-entra 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes dock-entra { from { opacity: 0; transform: translateY(24px); } }
+.dock-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.dock-cabecera h2 { font-size: 1.5rem; font-weight: 700; }
+.dock-cabecera .nota { display: flex; align-items: center; gap: 8px; }
+.dock-cabecera .nota .icono { color: var(--guayacan); }
+.dock-cabecera .nota b { color: var(--hueso); font-family: var(--display); font-size: 1.1rem; }
+.tarjetas-edificio { list-style: none; margin: 0; padding: 2px 2px 6px; display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x proximity; }
+.tarjetas-edificio li { flex: none; scroll-snap-align: start; }
+.tarjeta-edificio {
+  position: relative; width: 168px; height: 100%; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto 1fr;
+  gap: 4px 8px; align-items: start; text-align: left; padding: 10px 12px 12px;
+  border-radius: 14px; border: 1.5px solid var(--linea); background: rgba(241, 235, 223, 0.05);
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.tarjeta-edificio:hover:not([aria-disabled="true"]) { border-color: var(--guayacan); transform: translateY(-3px); }
+.tarjeta-edificio.elegida { border-color: var(--guayacan); background: var(--guayacan-suave); }
+.tarjeta-edificio[aria-disabled="true"] { cursor: not-allowed; }
+.tarjeta-edificio[aria-disabled="true"] .miniatura img { opacity: 0.45; filter: grayscale(0.6); }
+.tarjeta-edificio .miniatura {
+  grid-column: 1 / -1; height: 96px; display: grid; place-items: center; border-radius: 10px;
+  background: radial-gradient(circle at 50% 60%, rgba(242, 185, 59, 0.16), transparent 70%);
+}
+.tarjeta-edificio .miniatura img { height: 96px; width: 96px; object-fit: contain; }
+.tarjeta-edificio.bloqueada .miniatura { background: rgba(241, 235, 223, 0.04); color: var(--niebla); }
+.tarjeta-edificio.bloqueada .miniatura .icono { width: 30px; height: 30px; }
+.tarjeta-edificio .nombre { font-family: var(--display); font-weight: 700; font-size: 1rem; line-height: 1.15; }
+.tarjeta-edificio .costo { display: flex; align-items: center; gap: 4px; font-family: var(--display); font-weight: 700; color: var(--guayacan); }
+.tarjeta-edificio .costo .icono { width: 16px; height: 16px; }
+.tarjeta-edificio .costo.corto { color: var(--niebla); }
+.tarjeta-edificio .detalle { grid-column: 1 / -1; font-size: 0.82rem; color: var(--niebla); line-height: 1.3; }
+
+.pista {
+  position: fixed; top: 96px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center;
+  background: var(--pizarra); border: 1px solid var(--guayacan); border-radius: 999px; padding: 10px 20px;
+  font-weight: 700; box-shadow: 0 10px 30px rgba(10, 18, 30, 0.4); max-width: calc(100vw - 32px);
+}
+.pista .teclas { color: var(--niebla); font-weight: 400; font-size: 0.9rem; }
+kbd { font-family: var(--texto); font-size: 0.78em; font-weight: 700; padding: 1px 6px; border-radius: 5px; border: 1px solid currentColor; }
+
+.panel-edificio {
+  position: fixed; right: var(--margen); top: 120px; width: min(300px, calc(100vw - 2 * var(--margen)));
+  background: var(--panel); backdrop-filter: blur(16px); border: 1px solid var(--linea); border-radius: 18px;
+  padding: 16px 18px 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  animation: dock-entra 0.25s ease;
+}
+.panel-edificio img { width: 120px; height: 120px; }
+.panel-edificio h3 { font-size: 1.3rem; }
+.cerrar-panel { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; }
+.niveles-edificio { display: flex; gap: 6px; }
+.niveles-edificio i { width: 26px; height: 6px; border-radius: 3px; background: rgba(241, 235, 223, 0.2); }
+.niveles-edificio i.lleno { background: var(--guayacan); }
+.acciones-edificio { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.acciones-edificio .boton { width: 100%; }
+.boton-texto.peligro { color: var(--arcilla); }
+
+.desbloqueos { display: flex; flex-direction: column; gap: 8px; }
+.desbloqueos h3 { font-size: 1.05rem; }
+.desbloqueo { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; background: var(--guayacan-suave); border: 1px solid rgba(242, 185, 59, 0.35); }
+.desbloqueo img { width: 64px; height: 64px; }
+.desbloqueo div { display: flex; flex-direction: column; }
+
+#avisos { bottom: 230px; }
+.toast { animation: dock-entra 0.25s ease; font-weight: 700; box-shadow: 0 10px 30px rgba(10, 18, 30, 0.4); }
+
+@media (max-width: 760px) {
+  .dock { left: 8px; right: 8px; bottom: 8px; padding: 12px; }
+  .tarjeta-edificio { width: 140px; }
+  .tarjeta-edificio .miniatura, .tarjeta-edificio .miniatura img { height: 72px; }
+  .tarjeta-edificio .miniatura img { width: 72px; }
+  .panel-edificio { top: auto; bottom: 12px; right: 12px; left: 12px; width: auto; }
+  .pista { top: 84px; border-radius: 14px; }
+  .stat-materiales span { display: none; }
+}
+.dock:not([hidden]) ~ .marca-modo, .panel-edificio:not([hidden]) ~ .marca-modo { display: none; }

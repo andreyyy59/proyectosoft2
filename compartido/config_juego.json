@@ -14,25 +14,67 @@
     "racha_maximo": 10
   },
   "niveles": [
-    { "numero": 1, "nombre": "Practicante", "min": 0 },
-    { "numero": 2, "nombre": "Junior", "min": 40 },
-    { "numero": 3, "nombre": "Semi-senior", "min": 100 },
-    { "numero": 4, "nombre": "Senior", "min": 180 },
-    { "numero": 5, "nombre": "Líder técnico", "min": 280 },
-    { "numero": 6, "nombre": "Arquitecto", "min": 400 }
+    {
+      "numero": 1,
+      "nombre": "Practicante",
+      "min": 0
+    },
+    {
+      "numero": 2,
+      "nombre": "Junior",
+      "min": 40
+    },
+    {
+      "numero": 3,
+      "nombre": "Semi-senior",
+      "min": 100
+    },
+    {
+      "numero": 4,
+      "nombre": "Senior",
+      "min": 180
+    },
+    {
+      "numero": 5,
+      "nombre": "Líder técnico",
+      "min": 280
+    },
+    {
+      "numero": 6,
+      "nombre": "Arquitecto",
+      "min": 400
+    }
   ],
   "perfiles": {
     "desarrollador": {
       "nombre": "Desarrollador",
       "descripcion": "Software Factory: construyes y pruebas el código.",
-      "evidencias": ["commit", "pull_request", "prueba", "documento"],
-      "evidencias_clave": ["commit", "pull_request", "prueba"]
+      "evidencias": [
+        "commit",
+        "pull_request",
+        "prueba",
+        "documento"
+      ],
+      "evidencias_clave": [
+        "commit",
+        "pull_request",
+        "prueba"
+      ]
     },
     "consultor": {
       "nombre": "Consultor",
       "descripcion": "Implementación y soporte: acompañas al cliente.",
-      "evidencias": ["acta_cliente", "ticket", "capacitacion", "documento"],
-      "evidencias_clave": ["acta_cliente", "ticket", "capacitacion"]
+      "evidencias": [
+        "acta_cliente",
+        "ticket",
+        "capacitacion",
+        "documento"
+      ],
+      "evidencias_clave": [
+        "acta_cliente",
+        "ticket",
+        "capacitacion"
+      ]
     }
   },
   "evidencias": {
@@ -46,20 +88,235 @@
     "ninguna": "Sin evidencia"
   },
   "reglas": [
-    { "id": "base", "nombre": "Reporte del día", "descripcion": "Por registrar tu avance (una vez al día)." },
-    { "id": "puntualidad", "nombre": "A tiempo", "descripcion": "Reportaste antes de la hora límite." },
-    { "id": "evidencia", "nombre": "Con evidencia", "descripcion": "Adjuntaste un enlace o referencia de tu trabajo." },
-    { "id": "transparencia", "nombre": "Transparencia", "descripcion": "Contaste un bloqueo para que el equipo te ayude." },
-    { "id": "racha", "nombre": "Racha", "descripcion": "Días hábiles seguidos reportando a tiempo." }
+    {
+      "id": "base",
+      "nombre": "Reporte del día",
+      "descripcion": "Por registrar tu avance (una vez al día)."
+    },
+    {
+      "id": "puntualidad",
+      "nombre": "A tiempo",
+      "descripcion": "Reportaste antes de la hora límite."
+    },
+    {
+      "id": "evidencia",
+      "nombre": "Con evidencia",
+      "descripcion": "Adjuntaste un enlace o referencia de tu trabajo."
+    },
+    {
+      "id": "transparencia",
+      "nombre": "Transparencia",
+      "descripcion": "Contaste un bloqueo para que el equipo te ayude."
+    },
+    {
+      "id": "racha",
+      "nombre": "Racha",
+      "descripcion": "Días hábiles seguidos reportando a tiempo."
+    }
   ],
   "insignias": [
-    { "codigo": "primer_paso", "nombre": "Primer paso", "descripcion": "Registra tu primer avance.", "icono": "bandera", "estadistica": "total_reportes", "minimo": 1 },
-    { "codigo": "puntual_3", "nombre": "Puntual", "descripcion": "Reporta a tiempo en 3 días distintos.", "icono": "reloj", "estadistica": "reportes_a_tiempo", "minimo": 3 },
-    { "codigo": "racha_3", "nombre": "En racha", "descripcion": "3 días hábiles seguidos a tiempo.", "icono": "llama", "estadistica": "racha_maxima", "minimo": 3 },
-    { "codigo": "racha_5", "nombre": "Semana perfecta", "descripcion": "5 días hábiles seguidos a tiempo.", "icono": "corona", "estadistica": "racha_maxima", "minimo": 5 },
-    { "codigo": "evidencia_5", "nombre": "Todo documentado", "descripcion": "5 reportes con evidencia.", "icono": "clip", "estadistica": "reportes_con_evidencia", "minimo": 5 },
-    { "codigo": "transparente", "nombre": "Sin miedo a los bloqueos", "descripcion": "Reporta 2 bloqueos para pedir ayuda a tiempo.", "icono": "escudo", "estadistica": "bloqueos_reportados", "minimo": 2 },
-    { "codigo": "trazabilidad", "nombre": "Trazabilidad total", "descripcion": "3 reportes con commit, pull request o prueba.", "icono": "rama", "perfil": "desarrollador", "estadistica": "evidencias_clave", "minimo": 3 },
-    { "codigo": "cliente_al_dia", "nombre": "Cliente al día", "descripcion": "3 reportes con acta, ticket o capacitación.", "icono": "apreton", "perfil": "consultor", "estadistica": "evidencias_clave", "minimo": 3 }
+    {
+      "codigo": "primer_paso",
+      "nombre": "Primer paso",
+      "descripcion": "Registra tu primer avance.",
+      "icono": "bandera",
+      "estadistica": "total_reportes",
+      "minimo": 1
+    },
+    {
+      "codigo": "puntual_3",
+      "nombre": "Puntual",
+      "descripcion": "Reporta a tiempo en 3 días distintos.",
+      "icono": "reloj",
+      "estadistica": "reportes_a_tiempo",
+      "minimo": 3
+    },
+    {
+      "codigo": "racha_3",
+      "nombre": "En racha",
+      "descripcion": "3 días hábiles seguidos a tiempo.",
+      "icono": "llama",
+      "estadistica": "racha_maxima",
+      "minimo": 3
+    },
+    {
+      "codigo": "racha_5",
+      "nombre": "Semana perfecta",
+      "descripcion": "5 días hábiles seguidos a tiempo.",
+      "icono": "corona",
+      "estadistica": "racha_maxima",
+      "minimo": 5
+    },
+    {
+      "codigo": "evidencia_5",
+      "nombre": "Todo documentado",
+      "descripcion": "5 reportes con evidencia.",
+      "icono": "clip",
+      "estadistica": "reportes_con_evidencia",
+      "minimo": 5
+    },
+    {
+      "codigo": "transparente",
+      "nombre": "Sin miedo a los bloqueos",
+      "descripcion": "Reporta 2 bloqueos para pedir ayuda a tiempo.",
+      "icono": "escudo",
+      "estadistica": "bloqueos_reportados",
+      "minimo": 2
+    },
+    {
+      "codigo": "trazabilidad",
+      "nombre": "Trazabilidad total",
+      "descripcion": "3 reportes con commit, pull request o prueba.",
+      "icono": "rama",
+      "perfil": "desarrollador",
+      "estadistica": "evidencias_clave",
+      "minimo": 3
+    },
+    {
+      "codigo": "cliente_al_dia",
+      "nombre": "Cliente al día",
+      "descripcion": "3 reportes con acta, ticket o capacitación.",
+      "icono": "apreton",
+      "perfil": "consultor",
+      "estadistica": "evidencias_clave",
+      "minimo": 3
+    }
+  ],
+  "materiales_iniciales": 15,
+  "meseta": {
+    "radio_base": 3.4,
+    "radio_por_nivel": 0.45,
+    "tamano_celda": 1.2,
+    "margen": 0.75
+  },
+  "construccion": {
+    "nivel_maximo": 3,
+    "factor_mejora": 0.8,
+    "reembolso": 0.5
+  },
+  "catalogo": [
+    {
+      "id": "guayacan",
+      "nombre": "Guayacán",
+      "descripcion": "El árbol amarillo de Santander. Barato y alegre.",
+      "costo": 5,
+      "requisito": {
+        "tipo": "nivel",
+        "valor": 1
+      }
+    },
+    {
+      "id": "casa",
+      "nombre": "Casa de piedra",
+      "descripcion": "El hogar básico de tu meseta.",
+      "costo": 10,
+      "requisito": {
+        "tipo": "nivel",
+        "valor": 1
+      }
+    },
+    {
+      "id": "plaza",
+      "nombre": "Plaza con fuente",
+      "descripcion": "Un lugar para que el equipo se encuentre.",
+      "costo": 15,
+      "requisito": {
+        "tipo": "nivel",
+        "valor": 2
+      }
+    },
+    {
+      "id": "torre",
+      "nombre": "Torre de código",
+      "descripcion": "Se desbloquea al reportar un commit o un pull request.",
+      "costo": 25,
+      "requisito": {
+        "tipo": "evidencia",
+        "valor": [
+          "commit",
+          "pull_request"
+        ]
+      }
+    },
+    {
+      "id": "laboratorio",
+      "nombre": "Laboratorio de pruebas",
+      "descripcion": "Se desbloquea al reportar una prueba ejecutada.",
+      "costo": 25,
+      "requisito": {
+        "tipo": "evidencia",
+        "valor": [
+          "prueba"
+        ]
+      }
+    },
+    {
+      "id": "archivo",
+      "nombre": "Archivo",
+      "descripcion": "Se desbloquea al reportar un documento.",
+      "costo": 20,
+      "requisito": {
+        "tipo": "evidencia",
+        "valor": [
+          "documento"
+        ]
+      }
+    },
+    {
+      "id": "casa_cliente",
+      "nombre": "Casa del cliente",
+      "descripcion": "Se desbloquea al reportar un acta con el cliente.",
+      "costo": 25,
+      "requisito": {
+        "tipo": "evidencia",
+        "valor": [
+          "acta_cliente"
+        ]
+      }
+    },
+    {
+      "id": "silo",
+      "nombre": "Silo de tickets",
+      "descripcion": "Se desbloquea al reportar un ticket resuelto.",
+      "costo": 25,
+      "requisito": {
+        "tipo": "evidencia",
+        "valor": [
+          "ticket"
+        ]
+      }
+    },
+    {
+      "id": "aula",
+      "nombre": "Aula de capacitación",
+      "descripcion": "Se desbloquea al reportar una capacitación.",
+      "costo": 30,
+      "requisito": {
+        "tipo": "evidencia",
+        "valor": [
+          "capacitacion"
+        ]
+      }
+    },
+    {
+      "id": "molino",
+      "nombre": "Molino",
+      "descripcion": "Se desbloquea en el nivel 3 (Semi-senior).",
+      "costo": 40,
+      "requisito": {
+        "tipo": "nivel",
+        "valor": 3
+      }
+    },
+    {
+      "id": "observatorio",
+      "nombre": "Observatorio",
+      "descripcion": "Se desbloquea en el nivel 4 (Senior).",
+      "costo": 60,
+      "requisito": {
+        "tipo": "nivel",
+        "valor": 4
+      }
+    }
   ]
 }

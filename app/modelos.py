@@ -20,9 +20,11 @@ class Usuario(db.Model):
     consintio = db.Column(db.Boolean, nullable=False, default=False)
     fecha_consentimiento = db.Column(db.DateTime)
     puntos = db.Column(db.Integer, nullable=False, default=0)
+    materiales_ajuste = db.Column(db.Integer, nullable=False, default=0)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
     reportes = db.relationship("Reporte", back_populates="usuario", lazy="dynamic")
+    construcciones = db.relationship("Construccion", back_populates="usuario", lazy="dynamic")
     insignias = db.relationship("InsigniaObtenida", back_populates="usuario", lazy="dynamic")
 
     def fijar_pin(self, pin: str) -> None:
@@ -104,6 +106,29 @@ class InsigniaObtenida(db.Model):
     obtenida_en = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
     usuario = db.relationship("Usuario", back_populates="insignias")
+
+
+class Construccion(db.Model):
+    """Un edificio en la meseta del jugador."""
+
+    __tablename__ = "construcciones"
+    __table_args__ = (db.UniqueConstraint("usuario_id", "celda_i", "celda_j"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
+    tipo = db.Column(db.String(30), nullable=False)
+    celda_i = db.Column(db.Integer, nullable=False)
+    celda_j = db.Column(db.Integer, nullable=False)
+    nivel = db.Column(db.Integer, nullable=False, default=1)
+    rotacion = db.Column(db.Integer, nullable=False, default=0)  # 0..3, cuartos de vuelta
+    gastado = db.Column(db.Integer, nullable=False)
+    creado_en = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    usuario = db.relationship("Usuario", back_populates="construcciones")
+
+    def como_dict(self) -> dict:
+        return {"id": self.id, "tipo": self.tipo, "celda": [self.celda_i, self.celda_j],
+                "nivel": self.nivel, "rotacion": self.rotacion, "gastado": self.gastado}
 
 
 class Evento(db.Model):

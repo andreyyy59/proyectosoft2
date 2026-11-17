@@ -186,3 +186,54 @@ export function validarReporte(perfil, datos, config) {
     bloqueo: bloqueo || null,
   };
 }
+
+// ---------- Construcción (copia de app/reglas/construccion.py) ----------
+export function radioMeseta(nivel, config) {
+  return config.meseta.radio_base + config.meseta.radio_por_nivel * (nivel - 1);
+}
+
+export function celdaValida(celda, nivel, config) {
+  if (!Array.isArray(celda) || celda.length !== 2 || !celda.every(Number.isInteger)) return false;
+  const [i, j] = celda;
+  if (i === 0 && j === 0) return false;
+  return Math.hypot(i, j) * config.meseta.tamano_celda <= radioMeseta(nivel, config) - config.meseta.margen + 1e-9;
+}
+
+export function celdasDisponibles(nivel, config) {
+  const alcance = Math.floor(radioMeseta(nivel, config) / config.meseta.tamano_celda) + 1;
+  const lista = [];
+  for (let i = -alcance; i <= alcance; i++) {
+    for (let j = -alcance; j <= alcance; j++) if (celdaValida([i, j], nivel, config)) lista.push([i, j]);
+  }
+  return lista;
+}
+
+export function evidenciasPorTipo(reportes) {
+  const conteo = {};
+  for (const r of reportes) {
+    if (!r.duplicado && r.evidencia_tipo !== "ninguna") conteo[r.evidencia_tipo] = (conteo[r.evidencia_tipo] ?? 0) + 1;
+  }
+  return conteo;
+}
+
+export function estadoItem(item, nivel, evidencias, config) {
+  const req = item.requisito;
+  if (req.tipo === "nivel") {
+    const ok = nivel >= req.valor;
+    return { id: item.id, desbloqueado: ok, falta: ok ? null : `Llega al nivel ${req.valor}.` };
+  }
+  const ok = req.valor.some((t) => (evidencias[t] ?? 0) > 0);
+  const nombres = req.valor.map((t) => config.evidencias[t].toLowerCase()).join(" o ");
+  return { id: item.id, desbloqueado: ok, falta: ok ? null : `Reporta un avance con evidencia: ${nombres}.` };
+}
+
+export function costoMejora(item, nivelActual, config) {
+  const c = config.construccion;
+  if (nivelActual >= c.nivel_maximo) return null;
+  return Math.round(item.costo * c.factor_mejora * nivelActual);
+}
+
+export const reembolso = (gastado, config) => Math.floor(gastado * config.construccion.reembolso);
+
+export const materialesDisponibles = (puntos, ajuste, gastadoEnPie, config) =>
+  config.materiales_iniciales + puntos + ajuste - gastadoEnPie;

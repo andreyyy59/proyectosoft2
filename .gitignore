@@ -1,11 +1,11 @@
-﻿__pycache__/
+__pycache__/
 *.pyc
 .venv/
 venv/
 instance/
 *.db
-.pytest_cache/
 .coverage
 htmlcov/
+.pytest_cache/
 node_modules/
-.env
+dist/

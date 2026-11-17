@@ -19,7 +19,9 @@ def test_primer_reporte_a_tiempo(servicio, jugador, reloj):
     assert r["racha"] == 1
     assert r["nuevas_insignias"] == ["primer_paso"]
     assert jugador.puntos == 20
-    assert tipos_eventos() == ["reporte_registrado", "puntos_otorgados", "insignia_obtenida"]
+    assert tipos_eventos() == ["reporte_registrado", "puntos_otorgados", "insignia_obtenida", "edificio_desbloqueado"]
+    assert r["nuevos_edificios"] == ["torre"]
+    assert r["materiales"] == 35  # 15 iniciales + 20
 
 
 def test_reporte_tarde_guarda_minutos_de_retraso(servicio, jugador, reloj):

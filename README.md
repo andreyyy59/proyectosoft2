@@ -1,6 +1,6 @@
 # Sprint Quest
 
-Juego para que el equipo de **Tiresia Soluciones Tecnológicas** registre su avance diario, con evidencia, antes de la hora límite de la jornada. Cada día reportado levanta un módulo en una meseta 3D inspirada en el cañón del Chicamocha. El cielo sigue la hora real y atardece al acercarse el cierre.
+Juego para que el equipo de **Tiresia Soluciones Tecnológicas** registre su avance diario, con evidencia, antes de la hora límite de la jornada. Cada reporte da puntos y **materiales**; con los materiales cada jugador construye su propia meseta 3D, inspirada en el cañón del Chicamocha. Los edificios especiales se desbloquean con el trabajo real reportado (la torre de código con un commit, la casa del cliente con un acta). El cielo sigue la hora real y atardece al acercarse el cierre.
 
 Proyecto de aula de Ingeniería de Software 2.
 
@@ -10,10 +10,10 @@ Proyecto de aula de Ingeniería de Software 2.
 | --- | --- |
 | Dos perfiles de jugador y un administrador | `desarrollador`, `consultor` y la cuenta `admin` (`compartido/config_juego.json`, `app/api.py`) |
 | Ciclo completo: acción, retroalimentación, recompensa y progreso | Registrar avance → desglose de puntos animado → puntos e insignias → niveles, racha y meseta que crece |
-| Tres o más elementos de juego | Puntos, rachas, insignias, niveles, meta cooperativa por equipo |
+| Tres o más elementos de juego | Puntos, materiales y construcción, desbloqueos por evidencia, rachas, insignias, niveles, meta cooperativa por equipo |
 | Registro de eventos en base de datos | Tabla `eventos` (`app/eventos.py`, patrón Observer) |
 | Vista con dos o más indicadores | Panel del administrador: reportes a tiempo, reportes con evidencia, retraso promedio, serie diaria y meta por equipo |
-| Pruebas unitarias con cobertura ≥ 60 % de las reglas | `tests/`: 61 pruebas; `app/reglas` tiene 100 % de cobertura |
+| Pruebas unitarias con cobertura ≥ 60 % de las reglas | `tests/`: 75 pruebas en Python y 6 en JavaScript; `app/reglas` tiene 100 % de cobertura |
 | Patrón de diseño justificado | **Strategy** (reglas de puntos), **Observer** (eventos), **Adapter** (almacén en línea o solitario) |
 | Consentimiento informado y datos anonimizados | Pantalla de consentimiento obligatoria; exportación CSV con códigos J01, J02… y sin texto libre |
 
@@ -34,6 +34,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 flask --app wsgi crear-admin --alias admin     # pide un PIN de 4 a 8 dígitos
+# Si venían de la versión anterior, borren instance/sprintquest.db: la base de datos cambió.
 flask --app wsgi run --debug                    # abre http://127.0.0.1:5000
 ```
 
@@ -106,6 +107,7 @@ Navegador (Three.js + menús)                        Servidor (Flask)
 ```
 
 - **Capas en el servidor:** rutas (`api.py`) → servicio (`servicios.py`) → reglas puras (`reglas/`) y modelos (`modelos.py`). Las reglas no dependen de Flask ni de la base de datos, por eso se prueban solas.
+- **Reglas de construcción** (`app/reglas/construccion.py` y su copia en `reglas.js`): materiales, desbloqueos, celdas válidas y costos de mejora, probadas contra los mismos escenarios en Python y JavaScript.
 - **Strategy:** cada regla de puntos es una clase (`ReglaBase`, `ReglaPuntualidad`, `ReglaEvidencia`, `ReglaTransparencia`, `ReglaRacha`). El `MotorReglas` las suma sin conocerlas; agregar una regla nueva no cambia el motor (hay una prueba que lo demuestra).
 - **Observer:** el servicio publica eventos (`reporte_registrado`, `insignia_obtenida`…) en un `BusEventos`; un suscriptor los guarda en la tabla `eventos`. Los indicadores salen de ahí.
 - **Adapter:** la interfaz habla con un "almacén" que tiene la misma forma en línea (`AlmacenApi`) y en solitario (`AlmacenLocal`).
@@ -121,7 +123,15 @@ Navegador (Three.js + menús)                        Servidor (Flask)
 | Transparencia (contar un bloqueo) | +3 |
 | Racha de días hábiles a tiempo | +2 por día desde el segundo, hasta +10 |
 
-Niveles: Practicante (0), Junior (40), Semi-senior (100), Senior (180), Líder técnico (280), Arquitecto (400).
+Niveles: Practicante (0), Junior (40), Semi-senior (100), Senior (180), Líder técnico (280), Arquitecto (400). Cada nivel ensancha la meseta.
+
+## Construir la meseta
+
+- Cada reporte da tantos **materiales** como puntos. Se empieza con 15.
+- En **Construir** se elige un edificio y se toca un lugar libre de la meseta (`R` gira, `Esc` cancela).
+- Tocando un edificio se puede **mejorar** (hasta nivel 3), **mover o girar**, o **demoler** (devuelve la mitad de lo invertido).
+- Desbloqueos: guayacán y casa desde el inicio; plaza en nivel 2; molino en nivel 3; observatorio en nivel 4. Torre de código (commit o PR), laboratorio (prueba), archivo (documento), casa del cliente (acta), silo (ticket) y aula (capacitación) se desbloquean al reportar esa evidencia. Así cada perfil construye una meseta distinta.
+- El servidor valida todo (materiales, lugar, desbloqueo) y registra cada construcción como evento.
 
 ## Indicadores (fórmulas)
 

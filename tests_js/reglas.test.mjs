@@ -66,3 +66,19 @@ test("validación con los mismos mensajes que el servidor", () => {
   assert.throws(() => validarReporte("desarrollador", { ...base, evidencia_tipo: "ticket" }, config), /perfil/);
   assert.throws(() => validarReporte("desarrollador", { ...base, evidencia_ref: "" }, config), /referencia/);
 });
+
+test("construcción: escenarios compartidos con Python", async () => {
+  const R = await import("../app/static/js/reglas.js");
+  const item = Object.fromEntries(config.catalogo.map((i) => [i.id, i]));
+  for (const c of escenarios.construccion.celdas) assert.equal(R.celdaValida(c.celda, c.nivel, config), c.valida, JSON.stringify(c));
+  for (const c of escenarios.construccion.mejoras) assert.equal(R.costoMejora(item[c.tipo], c.nivel, config), c.costo);
+  for (const c of escenarios.construccion.celdas_por_nivel) assert.equal(R.celdasDisponibles(c.nivel, config).length, c.cantidad);
+  const ev = R.evidenciasPorTipo([{ evidencia_tipo: "ticket", duplicado: false }, { evidencia_tipo: "commit", duplicado: true }]);
+  assert.deepEqual(ev, { ticket: 1 });
+  assert.equal(R.estadoItem(item.silo, 1, ev, config).desbloqueado, true);
+  assert.match(R.estadoItem(item.torre, 1, ev, config).falta, /commit/);
+  assert.equal(R.estadoItem(item.molino, 2, ev, config).falta, "Llega al nivel 3.");
+  assert.equal(R.reembolso(25, config), 12);
+  assert.equal(R.materialesDisponibles(40, -5, 10, config), 40);
+  assert.equal(R.celdaValida([1.5, 0], 1, config), false);
+});

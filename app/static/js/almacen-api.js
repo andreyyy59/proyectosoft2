@@ -76,6 +76,22 @@ export class AlmacenApi {
     return pedir("GET", "/api/equipo");
   }
 
+  construir(tipo, celda, rotacion = 0) {
+    return pedir("POST", "/api/construcciones", { tipo, celda, rotacion });
+  }
+
+  mejorar(id) {
+    return pedir("POST", `/api/construcciones/${id}/mejorar`);
+  }
+
+  mover(id, celda, rotacion) {
+    return pedir("PATCH", `/api/construcciones/${id}`, { celda, rotacion });
+  }
+
+  demoler(id) {
+    return pedir("DELETE", `/api/construcciones/${id}`);
+  }
+
   telemetria(vista) {
     pedir("POST", "/api/telemetria", { vista }).catch(() => {});
   }

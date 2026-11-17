@@ -1,15 +1,16 @@
 // Interfaz del juego: pantallas de inicio, menú principal, HUD y hojas (paneles).
 // No sabe si está en línea o en solitario: habla con un "almacén" con la misma interfaz.
 import { PanelAdmin } from "./admin.js";
-import { faseDelDia } from "./escena.js";
+import { faseDelDia, miniaturaEdificio } from "./escena.js";
 import { esc, fmtDuracion, fmtFecha, fmtFechaLarga, fmtPct, plural } from "./formato.js";
 import { icono } from "./iconos.js";
-import { calcularPuntos, calcularRacha, esDiaHabil, minutos } from "./reglas.js";
+import { calcularPuntos, calcularRacha, celdasDisponibles, costoMejora, esDiaHabil, minutos, reembolso } from "./reglas.js";
 import { fijarSonido, sonar } from "./sonido.js";
 
 const ITEMS_MENU = [
   { accion: "reportar", texto: "Registrar avance de hoy" },
-  { accion: "meseta", texto: "Ver mi meseta", ayuda: "Gira la meseta arrastrando. Pasa el cursor sobre un módulo para ver su día." },
+  { accion: "construir", texto: "Construir" },
+  { accion: "meseta", texto: "Ver mi meseta", ayuda: "Gira la meseta arrastrando. Toca un edificio para mejorarlo, moverlo o demolerlo." },
   { accion: "logros", texto: "Logros", ayuda: "Insignias que has ganado y lo que falta para las siguientes." },
   { accion: "equipo", texto: "Equipo", ayuda: "La meta de esta semana se cumple entre todos." },
   { accion: "historial", texto: "Historial", ayuda: "Tus reportes y los puntos de cada uno." },
@@ -28,7 +29,12 @@ export class Interfaz {
     this.insigniaPorCodigo = Object.fromEntries(config.insignias.map((i) => [i.codigo, i]));
     fijarSonido(ajustes.sonido);
     document.addEventListener("keydown", (e) => this.teclado(e));
-    if (escena) escena.onHover = (rep, x, y) => this.mostrarTooltip(rep, x, y);
+    this.itemPorId = Object.fromEntries((config.catalogo ?? []).map((i) => [i.id, i]));
+    this.miniaturas = new Map();
+    if (escena) {
+      escena.onHover = (c, x, y) => this.mostrarTooltip(c, x, y);
+      escena.onSeleccionar = (c) => this.seleccionarEdificio(c);
+    }
   }
 
   // =============== Arranque ===============
@@ -251,6 +257,9 @@ export class Interfaz {
       <button class="boton-flotante" data-volver-menu hidden>${icono("menu")}<span>Menú</span></button>
       <aside class="cierre" aria-live="polite"></aside>
       <section class="hoja" hidden role="dialog" aria-modal="true" aria-labelledby="titulo-hoja"></section>
+      <section class="dock" hidden aria-label="Construir"></section>
+      <aside class="panel-edificio" hidden aria-live="polite"></aside>
+      <p class="pista" hidden aria-live="polite"></p>
       ${this.almacen.modo === "solitario" ? `<p class="marca-modo">${icono("sinNube")} Modo solitario</p>` : ""}`;
     this.hoja = this.raiz.querySelector(".hoja");
     this.menu = this.raiz.querySelector(".menu");
@@ -260,7 +269,8 @@ export class Interfaz {
     this.raiz.querySelectorAll(".item-menu").forEach((b) => {
       const mostrarAyuda = () => {
         const it = ITEMS_MENU[b.dataset.i];
-        ayuda.textContent = it.accion === "reportar" ? this.ayudaReportar() : it.ayuda;
+        ayuda.textContent = it.accion === "reportar" ? this.ayudaReportar()
+          : it.accion === "construir" ? `Tienes ${this.estado.materiales} materiales. Elige qué construir y dónde ponerlo.` : it.ayuda;
         this.raiz.querySelectorAll(".item-menu").forEach((x) => x.classList.toggle("activo", x === b));
       };
       b.addEventListener("focus", () => { mostrarAyuda(); sonar.mover(); });
@@ -295,6 +305,7 @@ export class Interfaz {
       </div>
       <div class="hud-stats">
         <div class="stat stat-racha ${e.racha ? "encendida" : ""}">${icono("llama")}<b>${e.racha}</b><span>${e.racha === 1 ? "día de racha" : "días de racha"}</span></div>
+        <div class="stat stat-materiales" title="Materiales para construir">${icono("bloque")}<b>${e.materiales}</b><span>materiales</span></div>
         <div class="stat"><b>${e.puntos}</b><span>puntos</span></div>
         <button class="boton-icono" data-sonido aria-label="${this.ajustes.sonido ? "Silenciar" : "Activar sonido"}">${icono(this.ajustes.sonido ? "sonido" : "silencio")}</button>
       </div>`;
@@ -332,6 +343,7 @@ export class Interfaz {
 
   mostrarMenu() {
     this.cerrarHoja(false);
+    this.cerrarConstruccion();
     this.menu.hidden = false;
     this.raiz.querySelector("[data-volver-menu]").hidden = true;
     this.raiz.querySelector(".cierre").hidden = false;
@@ -341,7 +353,9 @@ export class Interfaz {
   }
 
   explorar() {
+    this.cerrarConstruccion();
     this.menu.hidden = true;
+    this.raiz.querySelector(".cierre").hidden = true;
     this.raiz.querySelector("[data-volver-menu]").hidden = false;
     this.fijarVelo("explorar");
     this.escena?.setDesplazamiento(false);
@@ -352,6 +366,7 @@ export class Interfaz {
   accion(accion) {
     sonar.abrir();
     if (accion === "meseta") return this.explorar();
+    if (accion === "construir") return this.modoConstruir();
     if (accion === "salir") return this.salir();
     const vistas = {
       reportar: () => this.vistaReportar(),
@@ -484,7 +499,7 @@ export class Interfaz {
 
   async refrescarTrasReporte(resultado) {
     this.estado = await this.almacen.estado();
-    this.escena?.agregarReporte(resultado.reporte, this.estado);
+    this.escena?.setEstado(this.estado, this.config);
     this.pintarHud();
     this.pintarCierre();
     this.vistaResultado(resultado);
@@ -497,6 +512,7 @@ export class Interfaz {
     const cuerpo = this.abrirHoja(total ? "Avance registrado" : "Reporte guardado", `
       <div class="resultado">
         <p class="puntos-ganados"><span class="signo">+</span><span data-contador>0</span><span class="unidad">puntos</span></p>
+        ${total ? `<p class="materiales-ganados">${icono("bloque")}<span>+${r.materiales_ganados} materiales para construir. Tienes ${r.materiales}.</span></p>` : ""}
         ${r.resultado.motivo ? `<p class="aviso-suave">${esc(r.resultado.motivo)}</p>` : ""}
         <ul class="desglose">
           ${lineas.map((l) => `<li><span>${esc(this.nombreRegla[l.regla])}${l.regla === "racha" ? ` (${plural(r.racha, "día", "días")})` : ""}</span><b>+${l.puntos}</b></li>`).join("")}
@@ -507,8 +523,11 @@ export class Interfaz {
           <div class="barra"><i style="width:${r.subio_nivel ? 0 : r.nivel_antes.progreso * 100}%"></i></div>
         </div>
         ${r.nuevas_insignias.length ? `<div class="nuevas-insignias">${r.nuevas_insignias.map((c) => this.tarjetaInsignia(this.insigniaPorCodigo[c], true)).join("")}</div>` : ""}
+        ${(r.nuevos_edificios ?? []).length ? `<div class="desbloqueos"><h3>Nuevo edificio disponible</h3>${r.nuevos_edificios.map((t) => `
+          <div class="desbloqueo"><img src="${this.miniatura(t)}" alt=""><div><b>${esc(this.itemPorId[t].nombre)}</b><span class="nota">${this.itemPorId[t].costo} materiales</span></div></div>`).join("")}</div>` : ""}
         <div class="fila-botones">
-          <button class="boton boton-principal" data-ver>Ver mi meseta</button>
+          <button class="boton boton-principal" data-construir>${icono("martillo")}Construir</button>
+          <button class="boton boton-secundario" data-ver>Ver mi meseta</button>
           <button class="boton boton-secundario" data-menu>Volver al menú</button>
         </div>
       </div>`);
@@ -532,8 +551,9 @@ export class Interfaz {
     };
     requestAnimationFrame(paso);
     cuerpo.querySelector("[data-ver]").addEventListener("click", () => { this.cerrarHoja(); this.explorar(); });
+    cuerpo.querySelector("[data-construir]").addEventListener("click", () => { this.cerrarHoja(); this.modoConstruir(); });
     cuerpo.querySelector("[data-menu]").addEventListener("click", () => this.mostrarMenu());
-    cuerpo.querySelector("[data-ver]").focus();
+    cuerpo.querySelector("[data-construir]").focus();
   }
 
   // ----- Logros -----
@@ -620,7 +640,9 @@ export class Interfaz {
       <h3 class="subtitulo">Niveles</h3>
       <ol class="niveles">${this.config.niveles.map((n) => `<li class="${n.numero === this.estado.nivel.numero ? "actual" : ""}"><span>${esc(n.nombre)}</span><span class="num">${n.min} puntos</span></li>`).join("")}</ol>
       <h3 class="subtitulo">Tu meseta</h3>
-      <p>Cada módulo es un día reportado. Su forma depende de la evidencia: torre para commits, cúpula para pruebas, casa para actas con el cliente. Los reportes a tiempo se iluminan al atardecer; los tardíos quedan grises. El faro del centro brilla más mientras más larga es tu racha, y la meseta se ensancha cuando subes de nivel.</p>
+      <p>Cada reporte te da tantos materiales como puntos gana. Con ellos construyes en tu meseta lo que quieras y donde quieras, mejoras los edificios hasta el nivel ${this.config.construccion.nivel_maximo} o los mueves. Si demueles algo, recuperas la mitad de lo invertido.</p>
+      <p>Los edificios especiales se desbloquean con tu trabajo: la torre de código al reportar un commit, el laboratorio con una prueba, la casa del cliente con un acta. El faro del centro brilla más mientras más larga es tu racha, y la meseta se ensancha cuando subes de nivel.</p>
+      <table class="tabla"><tbody>${this.catalogoDelPerfil().map((i) => `<tr><th scope="row">${esc(i.nombre)}</th><td>${esc(i.requisito.tipo === "nivel" ? (i.requisito.valor === 1 ? "Disponible desde el inicio" : `Nivel ${i.requisito.valor}`) : i.descripcion)}</td><td class="num">${i.costo}</td></tr>`).join("")}</tbody></table>
       <h3 class="subtitulo">Tus datos</h3>
       <p>Los indicadores del piloto se calculan con códigos anónimos. El juego no muestra posiciones individuales y los datos no se usan para evaluar tu desempeño.</p>`);
   }
@@ -687,14 +709,237 @@ export class Interfaz {
     panel.montar();
   }
 
+  // =============== Construcción ===============
+  miniatura(tipo, nivel = 1) {
+    const clave = `${tipo}:${nivel}`;
+    if (!this.miniaturas.has(clave)) this.miniaturas.set(clave, (this.escena && miniaturaEdificio(tipo, nivel)) || "");
+    return this.miniaturas.get(clave);
+  }
+
+  get dock() {
+    return this.raiz.querySelector(".dock");
+  }
+
+  get panel() {
+    return this.raiz.querySelector(".panel-edificio");
+  }
+
+  get pista() {
+    return this.raiz.querySelector(".pista");
+  }
+
+  // Edificios que este perfil puede llegar a desbloquear
+  catalogoDelPerfil() {
+    const permitidas = new Set(this.config.perfiles[this.estado.usuario.perfil].evidencias);
+    return this.config.catalogo.filter((i) => i.requisito.tipo !== "evidencia" || i.requisito.valor.some((t) => permitidas.has(t)));
+  }
+
+  modoConstruir() {
+    this.cerrarHoja();
+    this.menu.hidden = true;
+    this.raiz.querySelector(".cierre").hidden = true;
+    this.raiz.querySelector("[data-volver-menu]").hidden = true;
+    this.fijarVelo("explorar");
+    this.escena?.setDesplazamiento(false);
+    this.escena?.setDesplazamientoVertical(1);
+    this.dock.hidden = false;
+    this.pintarDock();
+    this.almacen.telemetria("construir");
+    this.dock.querySelector(".tarjeta-edificio:not([aria-disabled=true])")?.focus();
+  }
+
+  pintarDock(seleccionado = null) {
+    const estados = Object.fromEntries((this.estado.catalogo ?? []).map((e) => [e.id, e]));
+    const mats = this.estado.materiales;
+    this.dock.innerHTML = `
+      <header class="dock-cabecera">
+        <div>
+          <h2>Construir</h2>
+          <p class="nota">${icono("bloque")}<span>Tienes <b>${mats}</b> materiales. Cada reporte te da tantos como puntos gane.</span></p>
+        </div>
+        <button class="boton boton-secundario" data-listo>Listo</button>
+      </header>
+      <ul class="tarjetas-edificio">
+        ${this.catalogoDelPerfil().map((item) => {
+          const est = estados[item.id] ?? { desbloqueado: false, falta: "" };
+          const falta = Math.max(0, item.costo - mats);
+          const usable = est.desbloqueado && !falta;
+          const detalle = !est.desbloqueado ? est.falta : falta ? `Te faltan ${falta} materiales.` : item.descripcion;
+          return `<li><button class="tarjeta-edificio ${est.desbloqueado ? "" : "bloqueada"} ${seleccionado === item.id ? "elegida" : ""}" data-tipo="${item.id}" aria-disabled="${!usable}">
+            <span class="miniatura">${est.desbloqueado ? `<img src="${this.miniatura(item.id)}" alt="">` : icono("candado")}</span>
+            <span class="nombre">${esc(item.nombre)}</span>
+            <span class="costo ${falta ? "corto" : ""}">${icono("bloque")}${item.costo}</span>
+            <span class="detalle">${esc(detalle)}</span>
+          </button></li>`;
+        }).join("")}
+      </ul>`;
+    this.dock.querySelector("[data-listo]").addEventListener("click", () => { sonar.cerrar(); this.mostrarMenu(); });
+    this.dock.querySelectorAll(".tarjeta-edificio").forEach((b) => b.addEventListener("click", () => {
+      if (b.getAttribute("aria-disabled") === "true") {
+        sonar.error();
+        this.aviso(b.querySelector(".detalle").textContent);
+        return;
+      }
+      sonar.abrir();
+      this.colocar(b.dataset.tipo);
+    }));
+  }
+
+  celdasLibres(ignorarId = null) {
+    return {
+      ocupadas: this.estado.construcciones.filter((c) => c.id !== ignorarId).map((c) => c.celda),
+      validas: celdasDisponibles(this.estado.nivel.numero, this.config),
+    };
+  }
+
+  colocar(tipo) {
+    if (!this.escena) return this.aviso("Este navegador no muestra 3D: no se puede construir aquí.");
+    this.seleccionarEdificio(null);
+    this.pintarDock(tipo);
+    const { ocupadas, validas } = this.celdasLibres();
+    if (validas.length <= ocupadas.length) return this.aviso("Tu meseta está llena. Sube de nivel para que crezca, o demuele algo.");
+    this.mostrarPista(`Toca un lugar libre de la meseta para poner: ${this.itemPorId[tipo].nombre}.`);
+    this.escena.modoColocar({
+      tipo, ocupadas, validas,
+      onElegir: (celda, rotacion) => this.confirmarConstruccion(tipo, celda, rotacion),
+    });
+  }
+
+  mostrarPista(texto) {
+    this.pista.hidden = false;
+    this.pista.innerHTML = `<span>${esc(texto)}</span><span class="teclas"><kbd>R</kbd> girar <kbd>Esc</kbd> cancelar</span>`;
+  }
+
+  cancelarColocacion() {
+    this.escena?.salirModo();
+    this.pista.hidden = true;
+    if (!this.dock.hidden) this.pintarDock();
+    sonar.cerrar();
+  }
+
+  async confirmarConstruccion(tipo, celda, rotacion) {
+    this.escena.salirModo();
+    this.pista.hidden = true;
+    try {
+      const r = await this.almacen.construir(tipo, celda, rotacion);
+      await this.trasCambioEdificio({ id: r.construccion.id, tipo: "construir" });
+      sonar.logro();
+      this.aviso(`Construiste: ${this.itemPorId[tipo].nombre}.`);
+    } catch (err) {
+      sonar.error();
+      this.aviso(err.message);
+    }
+    if (!this.dock.hidden) this.pintarDock();
+  }
+
+  async trasCambioEdificio(animar) {
+    this.estado = await this.almacen.estado();
+    this.escena?.sincronizarEdificios(this.estado.construcciones, { animar });
+    this.pintarHud();
+  }
+
+  cerrarConstruccion() {
+    this.escena?.setDesplazamientoVertical(0);
+    this.escena?.salirModo();
+    this.escena?.seleccionar(null);
+    if (this.raiz.querySelector(".dock")) {
+      this.dock.hidden = true;
+      this.panel.hidden = true;
+      this.pista.hidden = true;
+    }
+  }
+
+  seleccionarEdificio(c) {
+    const disponible = this.menu && this.menu.hidden && this.hoja.hidden;
+    if (!c || !disponible) {
+      this.escena?.seleccionar(null);
+      if (this.raiz.querySelector(".panel-edificio")) this.panel.hidden = true;
+      return;
+    }
+    sonar.mover();
+    this.escena.seleccionar(c.id);
+    const item = this.itemPorId[c.tipo];
+    const maximo = this.config.construccion.nivel_maximo;
+    const costo = costoMejora(item, c.nivel, this.config);
+    const devuelve = reembolso(c.gastado, this.config);
+    const alcanza = costo !== null && this.estado.materiales >= costo;
+    this.panel.hidden = false;
+    this.panel.innerHTML = `
+      <button class="boton-icono cerrar-panel" data-cerrar aria-label="Cerrar">${icono("cerrar")}</button>
+      <img src="${this.miniatura(c.tipo, c.nivel)}" alt="">
+      <h3>${esc(item.nombre)}</h3>
+      <div class="niveles-edificio" aria-label="Nivel ${c.nivel} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < c.nivel ? "lleno" : ""}"></i>`).join("")}</div>
+      <div class="acciones-edificio">
+        <button class="boton boton-principal" data-mejorar ${alcanza ? "" : "disabled"}>${icono("mejorar")}${costo === null ? "Nivel máximo" : `Mejorar (${costo})`}</button>
+        <button class="boton boton-secundario" data-mover>${icono("mover")}Mover o girar</button>
+        <button class="boton boton-texto" data-demoler>Demoler (te devuelve ${devuelve})</button>
+      </div>
+      ${costo !== null && !alcanza ? `<p class="nota">Te faltan ${costo - this.estado.materiales} materiales para mejorarlo.</p>` : ""}`;
+    this.panel.querySelector("[data-cerrar]").addEventListener("click", () => this.seleccionarEdificio(null));
+    this.panel.querySelector("[data-mejorar]").addEventListener("click", async () => {
+      try {
+        await this.almacen.mejorar(c.id);
+        await this.trasCambioEdificio({ id: c.id, tipo: "mejorar" });
+        sonar.logro();
+        this.seleccionarEdificio(this.estado.construcciones.find((x) => x.id === c.id));
+        if (!this.dock.hidden) this.pintarDock();
+      } catch (err) {
+        sonar.error();
+        this.aviso(err.message);
+      }
+    });
+    this.panel.querySelector("[data-mover]").addEventListener("click", () => {
+      this.panel.hidden = true;
+      const { ocupadas, validas } = this.celdasLibres(c.id);
+      this.mostrarPista(`Elige el nuevo lugar para ${item.nombre}.`);
+      this.escena.modoColocar({
+        tipo: c.tipo, nivel: c.nivel, rotacion: c.rotacion, ocupadas, validas,
+        onElegir: async (celda, rotacion) => {
+          this.escena.salirModo();
+          this.pista.hidden = true;
+          try {
+            await this.almacen.mover(c.id, celda, rotacion);
+            await this.trasCambioEdificio({ id: c.id, tipo: "mejorar" });
+            sonar.abrir();
+          } catch (err) {
+            sonar.error();
+            this.aviso(err.message);
+          }
+        },
+      });
+    });
+    const demoler = this.panel.querySelector("[data-demoler]");
+    demoler.addEventListener("click", async () => {
+      if (!demoler.dataset.confirmar) {
+        demoler.dataset.confirmar = "1";
+        demoler.textContent = "Confirmar: demoler";
+        demoler.classList.add("peligro");
+        return;
+      }
+      try {
+        const r = await this.almacen.demoler(c.id);
+        this.panel.hidden = true;
+        this.escena.seleccionar(null);
+        await this.trasCambioEdificio({ id: c.id, tipo: "demoler" });
+        sonar.cerrar();
+        this.aviso(`Demolido. Recuperaste ${r.devuelto} materiales.`);
+        if (!this.dock.hidden) this.pintarDock();
+      } catch (err) {
+        sonar.error();
+        this.aviso(err.message);
+      }
+    });
+  }
+
   // =============== Varios ===============
-  mostrarTooltip(rep, x, y) {
-    if (!rep) {
+  mostrarTooltip(c, x, y) {
+    if (!c || !this.menu || !this.menu.hidden || !this.hoja.hidden) {
       this.tooltip.hidden = true;
       return;
     }
+    const item = this.itemPorId[c.tipo];
     this.tooltip.hidden = false;
-    this.tooltip.innerHTML = `<b>${fmtFechaLarga(rep.fecha)}</b><span>${esc(rep.tarea)}</span><span>${rep.a_tiempo ? "A tiempo" : "Tarde"}, +${rep.puntos} puntos</span>`;
+    this.tooltip.innerHTML = `<b>${esc(item?.nombre ?? c.tipo)}</b><span>Nivel ${c.nivel} de ${this.config.construccion.nivel_maximo}. Tócalo para ver opciones.</span>`;
     const w = this.tooltip.offsetWidth;
     this.tooltip.style.left = `${Math.min(x + 14, window.innerWidth - w - 12)}px`;
     this.tooltip.style.top = `${y + 16}px`;
@@ -710,6 +955,22 @@ export class Interfaz {
 
   teclado(e) {
     if (!this.menu || !this.raiz.contains(this.menu)) return;
+    if (this.escena?.modo?.tipo === "colocar") {
+      if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        this.escena.rotarFantasma();
+        sonar.mover();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.cancelarColocacion();
+      }
+      return;
+    }
+    if (e.key === "Escape" && !this.panel.hidden) {
+      e.preventDefault();
+      this.seleccionarEdificio(null);
+      return;
+    }
     if (e.key === "Escape") {
       if (!this.hoja.hidden || this.menu.hidden) {
         e.preventDefault();

@@ -10,13 +10,13 @@ from flask import Blueprint, Response, current_app, jsonify, request, session
 from .extensiones import db
 from .indicadores import calcular_indicadores
 from .modelos import Evento, Reporte, Usuario
-from .servicios import ErrorValidacion
+from .servicios import ErrorNoEncontrado, ErrorValidacion
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
 PATRON_ALIAS = re.compile(r"^[A-Za-z0-9_.-]{3,40}$")
 PATRON_PIN = re.compile(r"^\d{4,8}$")
-VISTAS_TELEMETRIA = {"menu", "base", "logros", "equipo", "historial", "como_jugar", "ajustes", "admin"}
+VISTAS_TELEMETRIA = {"menu", "base", "construir", "logros", "equipo", "historial", "como_jugar", "ajustes", "admin"}
 
 
 def servicio():
@@ -56,6 +56,11 @@ def requiere_admin(vista):
 @api.errorhandler(ErrorValidacion)
 def _error_validacion(error):
     return jsonify(error=str(error)), 400
+
+
+@api.errorhandler(ErrorNoEncontrado)
+def _no_encontrado(error):
+    return jsonify(error=str(error)), 404
 
 
 # ---------- Público ----------
@@ -111,6 +116,41 @@ def crear_reporte(usuario):
         return jsonify(error="El administrador no juega."), 403
     resultado = servicio().registrar_reporte(usuario, request.get_json(silent=True) or {})
     return jsonify(resultado), 201
+
+
+def _solo_jugador(usuario):
+    if usuario.es_admin:
+        raise ErrorValidacion("El administrador no tiene meseta.")
+
+
+@api.post("/construcciones")
+@requiere_sesion
+def construir(usuario):
+    _solo_jugador(usuario)
+    d = request.get_json(silent=True) or {}
+    return jsonify(servicio().construir(usuario, d.get("tipo"), d.get("celda"), d.get("rotacion", 0))), 201
+
+
+@api.post("/construcciones/<int:cid>/mejorar")
+@requiere_sesion
+def mejorar(usuario, cid):
+    _solo_jugador(usuario)
+    return jsonify(servicio().mejorar(usuario, cid))
+
+
+@api.patch("/construcciones/<int:cid>")
+@requiere_sesion
+def mover(usuario, cid):
+    _solo_jugador(usuario)
+    d = request.get_json(silent=True) or {}
+    return jsonify(servicio().mover(usuario, cid, d.get("celda"), d.get("rotacion")))
+
+
+@api.delete("/construcciones/<int:cid>")
+@requiere_sesion
+def demoler(usuario, cid):
+    _solo_jugador(usuario)
+    return jsonify(servicio().demoler(usuario, cid))
 
 
 @api.get("/equipo")

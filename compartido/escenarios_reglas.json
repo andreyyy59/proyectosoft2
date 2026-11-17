@@ -1,0 +1,65 @@
+{
+  "_nota": "Escenarios compartidos: las pruebas de Python (pytest) y de JavaScript (node --test) los usan para garantizar que el motor del servidor y el del modo solitario calculan lo mismo.",
+  "puntos": [
+    {
+      "nombre": "Primer reporte a tiempo sin evidencia",
+      "contexto": { "fecha": "2026-11-02", "hora": "16:00", "hora_limite": "17:30", "tiene_evidencia": false, "reporto_bloqueo": false, "racha": 1, "es_duplicado": false },
+      "esperado": { "total": 15, "reglas": { "base": 10, "puntualidad": 5 } }
+    },
+    {
+      "nombre": "Reporte tarde con evidencia",
+      "contexto": { "fecha": "2026-11-03", "hora": "18:10", "hora_limite": "17:30", "tiene_evidencia": true, "reporto_bloqueo": false, "racha": 0, "es_duplicado": false },
+      "esperado": { "total": 15, "reglas": { "base": 10, "evidencia": 5 } }
+    },
+    {
+      "nombre": "Justo en la hora límite, con evidencia, bloqueo y racha de 3",
+      "contexto": { "fecha": "2026-11-04", "hora": "17:30", "hora_limite": "17:30", "tiene_evidencia": true, "reporto_bloqueo": true, "racha": 3, "es_duplicado": false },
+      "esperado": { "total": 27, "reglas": { "base": 10, "puntualidad": 5, "evidencia": 5, "transparencia": 3, "racha": 4 } }
+    },
+    {
+      "nombre": "El bono de racha tiene tope",
+      "contexto": { "fecha": "2026-11-12", "hora": "09:00", "hora_limite": "17:30", "tiene_evidencia": false, "reporto_bloqueo": false, "racha": 8, "es_duplicado": false },
+      "esperado": { "total": 25, "reglas": { "base": 10, "puntualidad": 5, "racha": 10 } }
+    },
+    {
+      "nombre": "Racha de 2 da el primer bono",
+      "contexto": { "fecha": "2026-11-03", "hora": "12:00", "hora_limite": "17:30", "tiene_evidencia": false, "reporto_bloqueo": false, "racha": 2, "es_duplicado": false },
+      "esperado": { "total": 17, "reglas": { "base": 10, "puntualidad": 5, "racha": 2 } }
+    },
+    {
+      "nombre": "Un reporte tarde nunca cobra racha",
+      "contexto": { "fecha": "2026-11-05", "hora": "18:00", "hora_limite": "17:30", "tiene_evidencia": false, "reporto_bloqueo": false, "racha": 4, "es_duplicado": false },
+      "esperado": { "total": 10, "reglas": { "base": 10 } }
+    },
+    {
+      "nombre": "El segundo reporte del día no suma",
+      "contexto": { "fecha": "2026-11-05", "hora": "10:00", "hora_limite": "17:30", "tiene_evidencia": true, "reporto_bloqueo": true, "racha": 3, "es_duplicado": true },
+      "esperado": { "total": 0, "reglas": {} }
+    }
+  ],
+  "rachas": [
+    { "nombre": "La racha cruza el fin de semana", "fechas": ["2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09"], "hasta": "2026-11-09", "esperado": 4 },
+    { "nombre": "Un día hábil sin reporte corta la racha", "fechas": ["2026-11-04", "2026-11-06"], "hasta": "2026-11-06", "esperado": 1 },
+    { "nombre": "Sin reporte ese día no hay racha", "fechas": ["2026-11-04", "2026-11-05"], "hasta": "2026-11-06", "esperado": 0 },
+    { "nombre": "Un sábado no cuenta como día de racha", "fechas": ["2026-11-06", "2026-11-07"], "hasta": "2026-11-07", "esperado": 0 }
+  ],
+  "rachas_vigentes": [
+    { "nombre": "El lunes, antes de reportar, la racha del viernes sigue viva", "fechas": ["2026-11-05", "2026-11-06"], "hoy": "2026-11-09", "esperado": 2 },
+    { "nombre": "El domingo se ve la racha del viernes", "fechas": ["2026-11-05", "2026-11-06"], "hoy": "2026-11-08", "esperado": 2 },
+    { "nombre": "Si ya reportó hoy, cuenta hoy", "fechas": ["2026-11-06", "2026-11-09"], "hoy": "2026-11-09", "esperado": 2 },
+    { "nombre": "Si faltó el día hábil anterior, la racha es 0", "fechas": ["2026-11-05"], "hoy": "2026-11-09", "esperado": 0 }
+  ],
+  "rachas_maximas": [
+    { "nombre": "Toma la secuencia más larga", "fechas": ["2026-11-02", "2026-11-03", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10"], "esperado": 4 },
+    { "nombre": "Sin reportes", "fechas": [], "esperado": 0 }
+  ],
+  "niveles": [
+    { "puntos": 0, "numero": 1, "progreso": 0.0 },
+    { "puntos": 39, "numero": 1, "progreso": 0.975 },
+    { "puntos": 40, "numero": 2, "progreso": 0.0 },
+    { "puntos": 70, "numero": 2, "progreso": 0.5 },
+    { "puntos": 399, "numero": 5, "progreso": 0.9917 },
+    { "puntos": 400, "numero": 6, "progreso": 1.0 },
+    { "puntos": 999, "numero": 6, "progreso": 1.0 }
+  ]
+}

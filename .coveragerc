@@ -1,0 +1,6 @@
+[run]
+source = app
+omit = app/comandos.py
+
+[report]
+show_missing = True

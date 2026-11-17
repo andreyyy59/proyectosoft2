@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "nombre_juego": "Sprint Quest",
+  "organizacion": "Tiresia Soluciones Tecnológicas",
+  "conducta_objetivo": "Registrar el avance diario y su evidencia antes de la hora límite de la jornada.",
+  "hora_limite_por_defecto": "17:30",
+  "meta_equipo_por_defecto": 80,
+  "puntos": {
+    "base": 10,
+    "puntualidad": 5,
+    "evidencia": 5,
+    "transparencia": 3,
+    "racha_por_dia": 2,
+    "racha_maximo": 10
+  },
+  "niveles": [
+    { "numero": 1, "nombre": "Practicante", "min": 0 },
+    { "numero": 2, "nombre": "Junior", "min": 40 },
+    { "numero": 3, "nombre": "Semi-senior", "min": 100 },
+    { "numero": 4, "nombre": "Senior", "min": 180 },
+    { "numero": 5, "nombre": "Líder técnico", "min": 280 },
+    { "numero": 6, "nombre": "Arquitecto", "min": 400 }
+  ],
+  "perfiles": {
+    "desarrollador": {
+      "nombre": "Desarrollador",
+      "descripcion": "Software Factory: construyes y pruebas el código.",
+      "evidencias": ["commit", "pull_request", "prueba", "documento"],
+      "evidencias_clave": ["commit", "pull_request", "prueba"]
+    },
+    "consultor": {
+      "nombre": "Consultor",
+      "descripcion": "Implementación y soporte: acompañas al cliente.",
+      "evidencias": ["acta_cliente", "ticket", "capacitacion", "documento"],
+      "evidencias_clave": ["acta_cliente", "ticket", "capacitacion"]
+    }
+  },
+  "evidencias": {
+    "commit": "Commit",
+    "pull_request": "Pull request",
+    "prueba": "Prueba ejecutada",
+    "documento": "Documento",
+    "acta_cliente": "Acta con el cliente",
+    "ticket": "Ticket resuelto",
+    "capacitacion": "Capacitación",
+    "ninguna": "Sin evidencia"
+  },
+  "reglas": [
+    { "id": "base", "nombre": "Reporte del día", "descripcion": "Por registrar tu avance (una vez al día)." },
+    { "id": "puntualidad", "nombre": "A tiempo", "descripcion": "Reportaste antes de la hora límite." },
+    { "id": "evidencia", "nombre": "Con evidencia", "descripcion": "Adjuntaste un enlace o referencia de tu trabajo." },
+    { "id": "transparencia", "nombre": "Transparencia", "descripcion": "Contaste un bloqueo para que el equipo te ayude." },
+    { "id": "racha", "nombre": "Racha", "descripcion": "Días hábiles seguidos reportando a tiempo." }
+  ],
+  "insignias": [
+    { "codigo": "primer_paso", "nombre": "Primer paso", "descripcion": "Registra tu primer avance.", "icono": "bandera", "estadistica": "total_reportes", "minimo": 1 },
+    { "codigo": "puntual_3", "nombre": "Puntual", "descripcion": "Reporta a tiempo en 3 días distintos.", "icono": "reloj", "estadistica": "reportes_a_tiempo", "minimo": 3 },
+    { "codigo": "racha_3", "nombre": "En racha", "descripcion": "3 días hábiles seguidos a tiempo.", "icono": "llama", "estadistica": "racha_maxima", "minimo": 3 },
+    { "codigo": "racha_5", "nombre": "Semana perfecta", "descripcion": "5 días hábiles seguidos a tiempo.", "icono": "corona", "estadistica": "racha_maxima", "minimo": 5 },
+    { "codigo": "evidencia_5", "nombre": "Todo documentado", "descripcion": "5 reportes con evidencia.", "icono": "clip", "estadistica": "reportes_con_evidencia", "minimo": 5 },
+    { "codigo": "transparente", "nombre": "Sin miedo a los bloqueos", "descripcion": "Reporta 2 bloqueos para pedir ayuda a tiempo.", "icono": "escudo", "estadistica": "bloqueos_reportados", "minimo": 2 },
+    { "codigo": "trazabilidad", "nombre": "Trazabilidad total", "descripcion": "3 reportes con commit, pull request o prueba.", "icono": "rama", "perfil": "desarrollador", "estadistica": "evidencias_clave", "minimo": 3 },
+    { "codigo": "cliente_al_dia", "nombre": "Cliente al día", "descripcion": "3 reportes con acta, ticket o capacitación.", "icono": "apreton", "perfil": "consultor", "estadistica": "evidencias_clave", "minimo": 3 }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "sprintquest",
+  "version": "1.0.0",
+  "description": "Sprint Quest: juego para registrar el avance diario (Tiresia)",
+  "scripts": {
+    "test": "node --test --experimental-test-coverage tests_js/*.test.mjs",
+    "vista-previa": "node scripts/construir_vista_previa.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
+    "esbuild": "^0.28.2",
+    "three": "^0.170.0"
+  },
+  "type": "module",
+  "private": true
+}

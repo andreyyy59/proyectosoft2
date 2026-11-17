@@ -80,6 +80,7 @@ export class Interfaz {
             ${enLinea
               ? `<button class="boton boton-principal" data-ir="entrar">Entrar con mi alias</button>
                  <button class="boton boton-secundario" data-ir="solitario">${perfilLocal ? `Seguir en solitario como ${esc(perfilLocal.alias)}` : "Jugar en solitario"}</button>
+                 <button class="boton boton-texto" data-ir="admin">Entrar al panel del administrador</button>
                  <p class="nota">En solitario tus datos quedan solo en este navegador y no cuentan para el piloto.</p>`
               : `<div class="aviso-modo">${icono("sinNube")}<p>${this.soloSolitario
                     ? "Versión solitario: tus datos se guardan solo en este navegador."
@@ -93,6 +94,7 @@ export class Interfaz {
       sonar.abrir();
       const ir = b.dataset.ir;
       if (ir === "entrar") this.pantallaEntrar();
+      if (ir === "admin") this.pantallaEntrar(true);
       if (ir === "reintentar") this.iniciar();
       if (ir === "solitario") {
         this.almacen = local;
@@ -102,21 +104,23 @@ export class Interfaz {
     }));
   }
 
-  pantallaEntrar() {
+  pantallaEntrar(comoAdmin = false) {
     this.raiz.innerHTML = `
       <div class="pantalla pantalla-centro">
         <form class="tarjeta-form" novalidate>
           <button type="button" class="boton-icono volver" aria-label="Volver">${icono("volver")}</button>
-          <h2>Entrar</h2>
-          <p class="ayuda-form">Usa el alias y el PIN que te dio el administrador del juego.</p>
-          <label class="campo"><span>Alias</span><input name="alias" autocomplete="username" required autocapitalize="off" spellcheck="false"></label>
+          <h2>${comoAdmin ? "Panel del administrador" : "Entrar"}</h2>
+          <p class="ayuda-form">${comoAdmin
+            ? "Entra con la cuenta de administrador para ver los indicadores y gestionar a los jugadores."
+            : "Usa el alias y el PIN que te dio el administrador del juego."}</p>
+          <label class="campo"><span>Alias</span><input name="alias" value="${comoAdmin ? "admin" : ""}" autocomplete="username" required autocapitalize="off" spellcheck="false"></label>
           <label class="campo"><span>PIN</span><input name="pin" type="password" inputmode="numeric" autocomplete="current-password" required></label>
           <p class="error-form" role="alert"></p>
           <button class="boton boton-principal" type="submit">Entrar</button>
         </form>
       </div>`;
     const form = this.raiz.querySelector("form");
-    form.alias.focus();
+    (comoAdmin ? form.pin : form.alias).focus();
     form.querySelector(".volver").addEventListener("click", () => this.pantallaInicio());
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -124,6 +128,10 @@ export class Interfaz {
       error.textContent = "";
       try {
         const usuario = await this.almacen.entrar(form.alias.value, form.pin.value);
+        if (comoAdmin && !usuario.es_admin) {
+          await this.almacen.salir().catch(() => {});
+          throw new Error("Esa cuenta no es de administrador. Usa «Entrar con mi alias» para jugar.");
+        }
         sonar.abrir();
         this.entrarAlJuego(usuario);
       } catch (err) {
